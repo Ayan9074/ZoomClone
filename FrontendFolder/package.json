@@ -16,8 +16,10 @@
     "apollo-boost": "^0.4.9",
     "graphql": "^15.5.0",
     "graphql-tag": "^2.11.0",
+    "page": "^1.11.6",
     "sirv-cli": "^0.4.4",
-    "svelte-apollo": "^0.4.0"
+    "svelte-apollo": "^0.4.0",
+    "svelte-routing": "^1.5.0"
   },
   "scripts": {
     "build": "rollup -c",

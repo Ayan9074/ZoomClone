@@ -9,8 +9,10 @@
   let errors = {};
   const REGISTER = gql`
     mutation($email: String!, $password:String!){
-      register(email: $email, password: $password){
-        id
+      login(email: $email, password: $password){
+        id,
+        email,
+        createdAt
       }
     }
   `;
@@ -40,6 +42,7 @@
             } else {
               isSuccess = true;
               isLoading = false;
+              console.log(id)
             }
           }
           

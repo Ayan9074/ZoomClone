@@ -158,6 +158,19 @@ var app = (function () {
     }
     const outroing = new Set();
     let outros;
+    function group_outros() {
+        outros = {
+            r: 0,
+            c: [],
+            p: outros // parent group
+        };
+    }
+    function check_outros() {
+        if (!outros.r) {
+            run_all(outros.c);
+        }
+        outros = outros.p;
+    }
     function transition_in(block, local) {
         if (block && block.i) {
             outroing.delete(block);
@@ -304,9 +317,1243 @@ var app = (function () {
         }
     }
 
-    const key = "userContext";
+    var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
-    const initialValue = null;
+    function unwrapExports (x) {
+    	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+    }
+
+    function createCommonjsModule(fn, module) {
+    	return module = { exports: {} }, fn(module, module.exports), module.exports;
+    }
+
+    function getCjsExportFromNamespace (n) {
+    	return n && n['default'] || n;
+    }
+
+    var page = createCommonjsModule(function (module, exports) {
+    (function (global, factory) {
+    	 module.exports = factory() ;
+    }(commonjsGlobal, (function () {
+    var isarray = Array.isArray || function (arr) {
+      return Object.prototype.toString.call(arr) == '[object Array]';
+    };
+
+    /**
+     * Expose `pathToRegexp`.
+     */
+    var pathToRegexp_1 = pathToRegexp;
+    var parse_1 = parse;
+    var compile_1 = compile;
+    var tokensToFunction_1 = tokensToFunction;
+    var tokensToRegExp_1 = tokensToRegExp;
+
+    /**
+     * The main path matching regexp utility.
+     *
+     * @type {RegExp}
+     */
+    var PATH_REGEXP = new RegExp([
+      // Match escaped characters that would otherwise appear in future matches.
+      // This allows the user to escape special characters that won't transform.
+      '(\\\\.)',
+      // Match Express-style parameters and un-named parameters with a prefix
+      // and optional suffixes. Matches appear as:
+      //
+      // "/:test(\\d+)?" => ["/", "test", "\d+", undefined, "?", undefined]
+      // "/route(\\d+)"  => [undefined, undefined, undefined, "\d+", undefined, undefined]
+      // "/*"            => ["/", undefined, undefined, undefined, undefined, "*"]
+      '([\\/.])?(?:(?:\\:(\\w+)(?:\\(((?:\\\\.|[^()])+)\\))?|\\(((?:\\\\.|[^()])+)\\))([+*?])?|(\\*))'
+    ].join('|'), 'g');
+
+    /**
+     * Parse a string for the raw tokens.
+     *
+     * @param  {String} str
+     * @return {Array}
+     */
+    function parse (str) {
+      var tokens = [];
+      var key = 0;
+      var index = 0;
+      var path = '';
+      var res;
+
+      while ((res = PATH_REGEXP.exec(str)) != null) {
+        var m = res[0];
+        var escaped = res[1];
+        var offset = res.index;
+        path += str.slice(index, offset);
+        index = offset + m.length;
+
+        // Ignore already escaped sequences.
+        if (escaped) {
+          path += escaped[1];
+          continue
+        }
+
+        // Push the current path onto the tokens.
+        if (path) {
+          tokens.push(path);
+          path = '';
+        }
+
+        var prefix = res[2];
+        var name = res[3];
+        var capture = res[4];
+        var group = res[5];
+        var suffix = res[6];
+        var asterisk = res[7];
+
+        var repeat = suffix === '+' || suffix === '*';
+        var optional = suffix === '?' || suffix === '*';
+        var delimiter = prefix || '/';
+        var pattern = capture || group || (asterisk ? '.*' : '[^' + delimiter + ']+?');
+
+        tokens.push({
+          name: name || key++,
+          prefix: prefix || '',
+          delimiter: delimiter,
+          optional: optional,
+          repeat: repeat,
+          pattern: escapeGroup(pattern)
+        });
+      }
+
+      // Match any characters still remaining.
+      if (index < str.length) {
+        path += str.substr(index);
+      }
+
+      // If the path exists, push it onto the end.
+      if (path) {
+        tokens.push(path);
+      }
+
+      return tokens
+    }
+
+    /**
+     * Compile a string to a template function for the path.
+     *
+     * @param  {String}   str
+     * @return {Function}
+     */
+    function compile (str) {
+      return tokensToFunction(parse(str))
+    }
+
+    /**
+     * Expose a method for transforming tokens into the path function.
+     */
+    function tokensToFunction (tokens) {
+      // Compile all the tokens into regexps.
+      var matches = new Array(tokens.length);
+
+      // Compile all the patterns before compilation.
+      for (var i = 0; i < tokens.length; i++) {
+        if (typeof tokens[i] === 'object') {
+          matches[i] = new RegExp('^' + tokens[i].pattern + '$');
+        }
+      }
+
+      return function (obj) {
+        var path = '';
+        var data = obj || {};
+
+        for (var i = 0; i < tokens.length; i++) {
+          var token = tokens[i];
+
+          if (typeof token === 'string') {
+            path += token;
+
+            continue
+          }
+
+          var value = data[token.name];
+          var segment;
+
+          if (value == null) {
+            if (token.optional) {
+              continue
+            } else {
+              throw new TypeError('Expected "' + token.name + '" to be defined')
+            }
+          }
+
+          if (isarray(value)) {
+            if (!token.repeat) {
+              throw new TypeError('Expected "' + token.name + '" to not repeat, but received "' + value + '"')
+            }
+
+            if (value.length === 0) {
+              if (token.optional) {
+                continue
+              } else {
+                throw new TypeError('Expected "' + token.name + '" to not be empty')
+              }
+            }
+
+            for (var j = 0; j < value.length; j++) {
+              segment = encodeURIComponent(value[j]);
+
+              if (!matches[i].test(segment)) {
+                throw new TypeError('Expected all "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
+              }
+
+              path += (j === 0 ? token.prefix : token.delimiter) + segment;
+            }
+
+            continue
+          }
+
+          segment = encodeURIComponent(value);
+
+          if (!matches[i].test(segment)) {
+            throw new TypeError('Expected "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
+          }
+
+          path += token.prefix + segment;
+        }
+
+        return path
+      }
+    }
+
+    /**
+     * Escape a regular expression string.
+     *
+     * @param  {String} str
+     * @return {String}
+     */
+    function escapeString (str) {
+      return str.replace(/([.+*?=^!:${}()[\]|\/])/g, '\\$1')
+    }
+
+    /**
+     * Escape the capturing group by escaping special characters and meaning.
+     *
+     * @param  {String} group
+     * @return {String}
+     */
+    function escapeGroup (group) {
+      return group.replace(/([=!:$\/()])/g, '\\$1')
+    }
+
+    /**
+     * Attach the keys as a property of the regexp.
+     *
+     * @param  {RegExp} re
+     * @param  {Array}  keys
+     * @return {RegExp}
+     */
+    function attachKeys (re, keys) {
+      re.keys = keys;
+      return re
+    }
+
+    /**
+     * Get the flags for a regexp from the options.
+     *
+     * @param  {Object} options
+     * @return {String}
+     */
+    function flags (options) {
+      return options.sensitive ? '' : 'i'
+    }
+
+    /**
+     * Pull out keys from a regexp.
+     *
+     * @param  {RegExp} path
+     * @param  {Array}  keys
+     * @return {RegExp}
+     */
+    function regexpToRegexp (path, keys) {
+      // Use a negative lookahead to match only capturing groups.
+      var groups = path.source.match(/\((?!\?)/g);
+
+      if (groups) {
+        for (var i = 0; i < groups.length; i++) {
+          keys.push({
+            name: i,
+            prefix: null,
+            delimiter: null,
+            optional: false,
+            repeat: false,
+            pattern: null
+          });
+        }
+      }
+
+      return attachKeys(path, keys)
+    }
+
+    /**
+     * Transform an array into a regexp.
+     *
+     * @param  {Array}  path
+     * @param  {Array}  keys
+     * @param  {Object} options
+     * @return {RegExp}
+     */
+    function arrayToRegexp (path, keys, options) {
+      var parts = [];
+
+      for (var i = 0; i < path.length; i++) {
+        parts.push(pathToRegexp(path[i], keys, options).source);
+      }
+
+      var regexp = new RegExp('(?:' + parts.join('|') + ')', flags(options));
+
+      return attachKeys(regexp, keys)
+    }
+
+    /**
+     * Create a path regexp from string input.
+     *
+     * @param  {String} path
+     * @param  {Array}  keys
+     * @param  {Object} options
+     * @return {RegExp}
+     */
+    function stringToRegexp (path, keys, options) {
+      var tokens = parse(path);
+      var re = tokensToRegExp(tokens, options);
+
+      // Attach keys back to the regexp.
+      for (var i = 0; i < tokens.length; i++) {
+        if (typeof tokens[i] !== 'string') {
+          keys.push(tokens[i]);
+        }
+      }
+
+      return attachKeys(re, keys)
+    }
+
+    /**
+     * Expose a function for taking tokens and returning a RegExp.
+     *
+     * @param  {Array}  tokens
+     * @param  {Array}  keys
+     * @param  {Object} options
+     * @return {RegExp}
+     */
+    function tokensToRegExp (tokens, options) {
+      options = options || {};
+
+      var strict = options.strict;
+      var end = options.end !== false;
+      var route = '';
+      var lastToken = tokens[tokens.length - 1];
+      var endsWithSlash = typeof lastToken === 'string' && /\/$/.test(lastToken);
+
+      // Iterate over the tokens and create our regexp string.
+      for (var i = 0; i < tokens.length; i++) {
+        var token = tokens[i];
+
+        if (typeof token === 'string') {
+          route += escapeString(token);
+        } else {
+          var prefix = escapeString(token.prefix);
+          var capture = token.pattern;
+
+          if (token.repeat) {
+            capture += '(?:' + prefix + capture + ')*';
+          }
+
+          if (token.optional) {
+            if (prefix) {
+              capture = '(?:' + prefix + '(' + capture + '))?';
+            } else {
+              capture = '(' + capture + ')?';
+            }
+          } else {
+            capture = prefix + '(' + capture + ')';
+          }
+
+          route += capture;
+        }
+      }
+
+      // In non-strict mode we allow a slash at the end of match. If the path to
+      // match already ends with a slash, we remove it for consistency. The slash
+      // is valid at the end of a path match, not in the middle. This is important
+      // in non-ending mode, where "/test/" shouldn't match "/test//route".
+      if (!strict) {
+        route = (endsWithSlash ? route.slice(0, -2) : route) + '(?:\\/(?=$))?';
+      }
+
+      if (end) {
+        route += '$';
+      } else {
+        // In non-ending mode, we need the capturing groups to match as much as
+        // possible by using a positive lookahead to the end or next path segment.
+        route += strict && endsWithSlash ? '' : '(?=\\/|$)';
+      }
+
+      return new RegExp('^' + route, flags(options))
+    }
+
+    /**
+     * Normalize the given path string, returning a regular expression.
+     *
+     * An empty array can be passed in for the keys, which will hold the
+     * placeholder key descriptions. For example, using `/user/:id`, `keys` will
+     * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
+     *
+     * @param  {(String|RegExp|Array)} path
+     * @param  {Array}                 [keys]
+     * @param  {Object}                [options]
+     * @return {RegExp}
+     */
+    function pathToRegexp (path, keys, options) {
+      keys = keys || [];
+
+      if (!isarray(keys)) {
+        options = keys;
+        keys = [];
+      } else if (!options) {
+        options = {};
+      }
+
+      if (path instanceof RegExp) {
+        return regexpToRegexp(path, keys)
+      }
+
+      if (isarray(path)) {
+        return arrayToRegexp(path, keys, options)
+      }
+
+      return stringToRegexp(path, keys, options)
+    }
+
+    pathToRegexp_1.parse = parse_1;
+    pathToRegexp_1.compile = compile_1;
+    pathToRegexp_1.tokensToFunction = tokensToFunction_1;
+    pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
+
+    /**
+       * Module dependencies.
+       */
+
+      
+
+      /**
+       * Short-cuts for global-object checks
+       */
+
+      var hasDocument = ('undefined' !== typeof document);
+      var hasWindow = ('undefined' !== typeof window);
+      var hasHistory = ('undefined' !== typeof history);
+      var hasProcess = typeof process !== 'undefined';
+
+      /**
+       * Detect click event
+       */
+      var clickEvent = hasDocument && document.ontouchstart ? 'touchstart' : 'click';
+
+      /**
+       * To work properly with the URL
+       * history.location generated polyfill in https://github.com/devote/HTML5-History-API
+       */
+
+      var isLocation = hasWindow && !!(window.history.location || window.location);
+
+      /**
+       * The page instance
+       * @api private
+       */
+      function Page() {
+        // public things
+        this.callbacks = [];
+        this.exits = [];
+        this.current = '';
+        this.len = 0;
+
+        // private things
+        this._decodeURLComponents = true;
+        this._base = '';
+        this._strict = false;
+        this._running = false;
+        this._hashbang = false;
+
+        // bound functions
+        this.clickHandler = this.clickHandler.bind(this);
+        this._onpopstate = this._onpopstate.bind(this);
+      }
+
+      /**
+       * Configure the instance of page. This can be called multiple times.
+       *
+       * @param {Object} options
+       * @api public
+       */
+
+      Page.prototype.configure = function(options) {
+        var opts = options || {};
+
+        this._window = opts.window || (hasWindow && window);
+        this._decodeURLComponents = opts.decodeURLComponents !== false;
+        this._popstate = opts.popstate !== false && hasWindow;
+        this._click = opts.click !== false && hasDocument;
+        this._hashbang = !!opts.hashbang;
+
+        var _window = this._window;
+        if(this._popstate) {
+          _window.addEventListener('popstate', this._onpopstate, false);
+        } else if(hasWindow) {
+          _window.removeEventListener('popstate', this._onpopstate, false);
+        }
+
+        if (this._click) {
+          _window.document.addEventListener(clickEvent, this.clickHandler, false);
+        } else if(hasDocument) {
+          _window.document.removeEventListener(clickEvent, this.clickHandler, false);
+        }
+
+        if(this._hashbang && hasWindow && !hasHistory) {
+          _window.addEventListener('hashchange', this._onpopstate, false);
+        } else if(hasWindow) {
+          _window.removeEventListener('hashchange', this._onpopstate, false);
+        }
+      };
+
+      /**
+       * Get or set basepath to `path`.
+       *
+       * @param {string} path
+       * @api public
+       */
+
+      Page.prototype.base = function(path) {
+        if (0 === arguments.length) return this._base;
+        this._base = path;
+      };
+
+      /**
+       * Gets the `base`, which depends on whether we are using History or
+       * hashbang routing.
+
+       * @api private
+       */
+      Page.prototype._getBase = function() {
+        var base = this._base;
+        if(!!base) return base;
+        var loc = hasWindow && this._window && this._window.location;
+
+        if(hasWindow && this._hashbang && loc && loc.protocol === 'file:') {
+          base = loc.pathname;
+        }
+
+        return base;
+      };
+
+      /**
+       * Get or set strict path matching to `enable`
+       *
+       * @param {boolean} enable
+       * @api public
+       */
+
+      Page.prototype.strict = function(enable) {
+        if (0 === arguments.length) return this._strict;
+        this._strict = enable;
+      };
+
+
+      /**
+       * Bind with the given `options`.
+       *
+       * Options:
+       *
+       *    - `click` bind to click events [true]
+       *    - `popstate` bind to popstate [true]
+       *    - `dispatch` perform initial dispatch [true]
+       *
+       * @param {Object} options
+       * @api public
+       */
+
+      Page.prototype.start = function(options) {
+        var opts = options || {};
+        this.configure(opts);
+
+        if (false === opts.dispatch) return;
+        this._running = true;
+
+        var url;
+        if(isLocation) {
+          var window = this._window;
+          var loc = window.location;
+
+          if(this._hashbang && ~loc.hash.indexOf('#!')) {
+            url = loc.hash.substr(2) + loc.search;
+          } else if (this._hashbang) {
+            url = loc.search + loc.hash;
+          } else {
+            url = loc.pathname + loc.search + loc.hash;
+          }
+        }
+
+        this.replace(url, null, true, opts.dispatch);
+      };
+
+      /**
+       * Unbind click and popstate event handlers.
+       *
+       * @api public
+       */
+
+      Page.prototype.stop = function() {
+        if (!this._running) return;
+        this.current = '';
+        this.len = 0;
+        this._running = false;
+
+        var window = this._window;
+        this._click && window.document.removeEventListener(clickEvent, this.clickHandler, false);
+        hasWindow && window.removeEventListener('popstate', this._onpopstate, false);
+        hasWindow && window.removeEventListener('hashchange', this._onpopstate, false);
+      };
+
+      /**
+       * Show `path` with optional `state` object.
+       *
+       * @param {string} path
+       * @param {Object=} state
+       * @param {boolean=} dispatch
+       * @param {boolean=} push
+       * @return {!Context}
+       * @api public
+       */
+
+      Page.prototype.show = function(path, state, dispatch, push) {
+        var ctx = new Context(path, state, this),
+          prev = this.prevContext;
+        this.prevContext = ctx;
+        this.current = ctx.path;
+        if (false !== dispatch) this.dispatch(ctx, prev);
+        if (false !== ctx.handled && false !== push) ctx.pushState();
+        return ctx;
+      };
+
+      /**
+       * Goes back in the history
+       * Back should always let the current route push state and then go back.
+       *
+       * @param {string} path - fallback path to go back if no more history exists, if undefined defaults to page.base
+       * @param {Object=} state
+       * @api public
+       */
+
+      Page.prototype.back = function(path, state) {
+        var page = this;
+        if (this.len > 0) {
+          var window = this._window;
+          // this may need more testing to see if all browsers
+          // wait for the next tick to go back in history
+          hasHistory && window.history.back();
+          this.len--;
+        } else if (path) {
+          setTimeout(function() {
+            page.show(path, state);
+          });
+        } else {
+          setTimeout(function() {
+            page.show(page._getBase(), state);
+          });
+        }
+      };
+
+      /**
+       * Register route to redirect from one path to other
+       * or just redirect to another route
+       *
+       * @param {string} from - if param 'to' is undefined redirects to 'from'
+       * @param {string=} to
+       * @api public
+       */
+      Page.prototype.redirect = function(from, to) {
+        var inst = this;
+
+        // Define route from a path to another
+        if ('string' === typeof from && 'string' === typeof to) {
+          page.call(this, from, function(e) {
+            setTimeout(function() {
+              inst.replace(/** @type {!string} */ (to));
+            }, 0);
+          });
+        }
+
+        // Wait for the push state and replace it with another
+        if ('string' === typeof from && 'undefined' === typeof to) {
+          setTimeout(function() {
+            inst.replace(from);
+          }, 0);
+        }
+      };
+
+      /**
+       * Replace `path` with optional `state` object.
+       *
+       * @param {string} path
+       * @param {Object=} state
+       * @param {boolean=} init
+       * @param {boolean=} dispatch
+       * @return {!Context}
+       * @api public
+       */
+
+
+      Page.prototype.replace = function(path, state, init, dispatch) {
+        var ctx = new Context(path, state, this),
+          prev = this.prevContext;
+        this.prevContext = ctx;
+        this.current = ctx.path;
+        ctx.init = init;
+        ctx.save(); // save before dispatching, which may redirect
+        if (false !== dispatch) this.dispatch(ctx, prev);
+        return ctx;
+      };
+
+      /**
+       * Dispatch the given `ctx`.
+       *
+       * @param {Context} ctx
+       * @api private
+       */
+
+      Page.prototype.dispatch = function(ctx, prev) {
+        var i = 0, j = 0, page = this;
+
+        function nextExit() {
+          var fn = page.exits[j++];
+          if (!fn) return nextEnter();
+          fn(prev, nextExit);
+        }
+
+        function nextEnter() {
+          var fn = page.callbacks[i++];
+
+          if (ctx.path !== page.current) {
+            ctx.handled = false;
+            return;
+          }
+          if (!fn) return unhandled.call(page, ctx);
+          fn(ctx, nextEnter);
+        }
+
+        if (prev) {
+          nextExit();
+        } else {
+          nextEnter();
+        }
+      };
+
+      /**
+       * Register an exit route on `path` with
+       * callback `fn()`, which will be called
+       * on the previous context when a new
+       * page is visited.
+       */
+      Page.prototype.exit = function(path, fn) {
+        if (typeof path === 'function') {
+          return this.exit('*', path);
+        }
+
+        var route = new Route(path, null, this);
+        for (var i = 1; i < arguments.length; ++i) {
+          this.exits.push(route.middleware(arguments[i]));
+        }
+      };
+
+      /**
+       * Handle "click" events.
+       */
+
+      /* jshint +W054 */
+      Page.prototype.clickHandler = function(e) {
+        if (1 !== this._which(e)) return;
+
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        if (e.defaultPrevented) return;
+
+        // ensure link
+        // use shadow dom when available if not, fall back to composedPath()
+        // for browsers that only have shady
+        var el = e.target;
+        var eventPath = e.path || (e.composedPath ? e.composedPath() : null);
+
+        if(eventPath) {
+          for (var i = 0; i < eventPath.length; i++) {
+            if (!eventPath[i].nodeName) continue;
+            if (eventPath[i].nodeName.toUpperCase() !== 'A') continue;
+            if (!eventPath[i].href) continue;
+
+            el = eventPath[i];
+            break;
+          }
+        }
+
+        // continue ensure link
+        // el.nodeName for svg links are 'a' instead of 'A'
+        while (el && 'A' !== el.nodeName.toUpperCase()) el = el.parentNode;
+        if (!el || 'A' !== el.nodeName.toUpperCase()) return;
+
+        // check if link is inside an svg
+        // in this case, both href and target are always inside an object
+        var svg = (typeof el.href === 'object') && el.href.constructor.name === 'SVGAnimatedString';
+
+        // Ignore if tag has
+        // 1. "download" attribute
+        // 2. rel="external" attribute
+        if (el.hasAttribute('download') || el.getAttribute('rel') === 'external') return;
+
+        // ensure non-hash for the same path
+        var link = el.getAttribute('href');
+        if(!this._hashbang && this._samePath(el) && (el.hash || '#' === link)) return;
+
+        // Check for mailto: in the href
+        if (link && link.indexOf('mailto:') > -1) return;
+
+        // check target
+        // svg target is an object and its desired value is in .baseVal property
+        if (svg ? el.target.baseVal : el.target) return;
+
+        // x-origin
+        // note: svg links that are not relative don't call click events (and skip page.js)
+        // consequently, all svg links tested inside page.js are relative and in the same origin
+        if (!svg && !this.sameOrigin(el.href)) return;
+
+        // rebuild path
+        // There aren't .pathname and .search properties in svg links, so we use href
+        // Also, svg href is an object and its desired value is in .baseVal property
+        var path = svg ? el.href.baseVal : (el.pathname + el.search + (el.hash || ''));
+
+        path = path[0] !== '/' ? '/' + path : path;
+
+        // strip leading "/[drive letter]:" on NW.js on Windows
+        if (hasProcess && path.match(/^\/[a-zA-Z]:\//)) {
+          path = path.replace(/^\/[a-zA-Z]:\//, '/');
+        }
+
+        // same page
+        var orig = path;
+        var pageBase = this._getBase();
+
+        if (path.indexOf(pageBase) === 0) {
+          path = path.substr(pageBase.length);
+        }
+
+        if (this._hashbang) path = path.replace('#!', '');
+
+        if (pageBase && orig === path && (!isLocation || this._window.location.protocol !== 'file:')) {
+          return;
+        }
+
+        e.preventDefault();
+        this.show(orig);
+      };
+
+      /**
+       * Handle "populate" events.
+       * @api private
+       */
+
+      Page.prototype._onpopstate = (function () {
+        var loaded = false;
+        if ( ! hasWindow ) {
+          return function () {};
+        }
+        if (hasDocument && document.readyState === 'complete') {
+          loaded = true;
+        } else {
+          window.addEventListener('load', function() {
+            setTimeout(function() {
+              loaded = true;
+            }, 0);
+          });
+        }
+        return function onpopstate(e) {
+          if (!loaded) return;
+          var page = this;
+          if (e.state) {
+            var path = e.state.path;
+            page.replace(path, e.state);
+          } else if (isLocation) {
+            var loc = page._window.location;
+            page.show(loc.pathname + loc.search + loc.hash, undefined, undefined, false);
+          }
+        };
+      })();
+
+      /**
+       * Event button.
+       */
+      Page.prototype._which = function(e) {
+        e = e || (hasWindow && this._window.event);
+        return null == e.which ? e.button : e.which;
+      };
+
+      /**
+       * Convert to a URL object
+       * @api private
+       */
+      Page.prototype._toURL = function(href) {
+        var window = this._window;
+        if(typeof URL === 'function' && isLocation) {
+          return new URL(href, window.location.toString());
+        } else if (hasDocument) {
+          var anc = window.document.createElement('a');
+          anc.href = href;
+          return anc;
+        }
+      };
+
+      /**
+       * Check if `href` is the same origin.
+       * @param {string} href
+       * @api public
+       */
+      Page.prototype.sameOrigin = function(href) {
+        if(!href || !isLocation) return false;
+
+        var url = this._toURL(href);
+        var window = this._window;
+
+        var loc = window.location;
+
+        /*
+           When the port is the default http port 80 for http, or 443 for
+           https, internet explorer 11 returns an empty string for loc.port,
+           so we need to compare loc.port with an empty string if url.port
+           is the default port 80 or 443.
+           Also the comparition with `port` is changed from `===` to `==` because
+           `port` can be a string sometimes. This only applies to ie11.
+        */
+        return loc.protocol === url.protocol &&
+          loc.hostname === url.hostname &&
+          (loc.port === url.port || loc.port === '' && (url.port == 80 || url.port == 443)); // jshint ignore:line
+      };
+
+      /**
+       * @api private
+       */
+      Page.prototype._samePath = function(url) {
+        if(!isLocation) return false;
+        var window = this._window;
+        var loc = window.location;
+        return url.pathname === loc.pathname &&
+          url.search === loc.search;
+      };
+
+      /**
+       * Remove URL encoding from the given `str`.
+       * Accommodates whitespace in both x-www-form-urlencoded
+       * and regular percent-encoded form.
+       *
+       * @param {string} val - URL component to decode
+       * @api private
+       */
+      Page.prototype._decodeURLEncodedURIComponent = function(val) {
+        if (typeof val !== 'string') { return val; }
+        return this._decodeURLComponents ? decodeURIComponent(val.replace(/\+/g, ' ')) : val;
+      };
+
+      /**
+       * Create a new `page` instance and function
+       */
+      function createPage() {
+        var pageInstance = new Page();
+
+        function pageFn(/* args */) {
+          return page.apply(pageInstance, arguments);
+        }
+
+        // Copy all of the things over. In 2.0 maybe we use setPrototypeOf
+        pageFn.callbacks = pageInstance.callbacks;
+        pageFn.exits = pageInstance.exits;
+        pageFn.base = pageInstance.base.bind(pageInstance);
+        pageFn.strict = pageInstance.strict.bind(pageInstance);
+        pageFn.start = pageInstance.start.bind(pageInstance);
+        pageFn.stop = pageInstance.stop.bind(pageInstance);
+        pageFn.show = pageInstance.show.bind(pageInstance);
+        pageFn.back = pageInstance.back.bind(pageInstance);
+        pageFn.redirect = pageInstance.redirect.bind(pageInstance);
+        pageFn.replace = pageInstance.replace.bind(pageInstance);
+        pageFn.dispatch = pageInstance.dispatch.bind(pageInstance);
+        pageFn.exit = pageInstance.exit.bind(pageInstance);
+        pageFn.configure = pageInstance.configure.bind(pageInstance);
+        pageFn.sameOrigin = pageInstance.sameOrigin.bind(pageInstance);
+        pageFn.clickHandler = pageInstance.clickHandler.bind(pageInstance);
+
+        pageFn.create = createPage;
+
+        Object.defineProperty(pageFn, 'len', {
+          get: function(){
+            return pageInstance.len;
+          },
+          set: function(val) {
+            pageInstance.len = val;
+          }
+        });
+
+        Object.defineProperty(pageFn, 'current', {
+          get: function(){
+            return pageInstance.current;
+          },
+          set: function(val) {
+            pageInstance.current = val;
+          }
+        });
+
+        // In 2.0 these can be named exports
+        pageFn.Context = Context;
+        pageFn.Route = Route;
+
+        return pageFn;
+      }
+
+      /**
+       * Register `path` with callback `fn()`,
+       * or route `path`, or redirection,
+       * or `page.start()`.
+       *
+       *   page(fn);
+       *   page('*', fn);
+       *   page('/user/:id', load, user);
+       *   page('/user/' + user.id, { some: 'thing' });
+       *   page('/user/' + user.id);
+       *   page('/from', '/to')
+       *   page();
+       *
+       * @param {string|!Function|!Object} path
+       * @param {Function=} fn
+       * @api public
+       */
+
+      function page(path, fn) {
+        // <callback>
+        if ('function' === typeof path) {
+          return page.call(this, '*', path);
+        }
+
+        // route <path> to <callback ...>
+        if ('function' === typeof fn) {
+          var route = new Route(/** @type {string} */ (path), null, this);
+          for (var i = 1; i < arguments.length; ++i) {
+            this.callbacks.push(route.middleware(arguments[i]));
+          }
+          // show <path> with [state]
+        } else if ('string' === typeof path) {
+          this['string' === typeof fn ? 'redirect' : 'show'](path, fn);
+          // start [options]
+        } else {
+          this.start(path);
+        }
+      }
+
+      /**
+       * Unhandled `ctx`. When it's not the initial
+       * popstate then redirect. If you wish to handle
+       * 404s on your own use `page('*', callback)`.
+       *
+       * @param {Context} ctx
+       * @api private
+       */
+      function unhandled(ctx) {
+        if (ctx.handled) return;
+        var current;
+        var page = this;
+        var window = page._window;
+
+        if (page._hashbang) {
+          current = isLocation && this._getBase() + window.location.hash.replace('#!', '');
+        } else {
+          current = isLocation && window.location.pathname + window.location.search;
+        }
+
+        if (current === ctx.canonicalPath) return;
+        page.stop();
+        ctx.handled = false;
+        isLocation && (window.location.href = ctx.canonicalPath);
+      }
+
+      /**
+       * Escapes RegExp characters in the given string.
+       *
+       * @param {string} s
+       * @api private
+       */
+      function escapeRegExp(s) {
+        return s.replace(/([.+*?=^!:${}()[\]|/\\])/g, '\\$1');
+      }
+
+      /**
+       * Initialize a new "request" `Context`
+       * with the given `path` and optional initial `state`.
+       *
+       * @constructor
+       * @param {string} path
+       * @param {Object=} state
+       * @api public
+       */
+
+      function Context(path, state, pageInstance) {
+        var _page = this.page = pageInstance || page;
+        var window = _page._window;
+        var hashbang = _page._hashbang;
+
+        var pageBase = _page._getBase();
+        if ('/' === path[0] && 0 !== path.indexOf(pageBase)) path = pageBase + (hashbang ? '#!' : '') + path;
+        var i = path.indexOf('?');
+
+        this.canonicalPath = path;
+        var re = new RegExp('^' + escapeRegExp(pageBase));
+        this.path = path.replace(re, '') || '/';
+        if (hashbang) this.path = this.path.replace('#!', '') || '/';
+
+        this.title = (hasDocument && window.document.title);
+        this.state = state || {};
+        this.state.path = path;
+        this.querystring = ~i ? _page._decodeURLEncodedURIComponent(path.slice(i + 1)) : '';
+        this.pathname = _page._decodeURLEncodedURIComponent(~i ? path.slice(0, i) : path);
+        this.params = {};
+
+        // fragment
+        this.hash = '';
+        if (!hashbang) {
+          if (!~this.path.indexOf('#')) return;
+          var parts = this.path.split('#');
+          this.path = this.pathname = parts[0];
+          this.hash = _page._decodeURLEncodedURIComponent(parts[1]) || '';
+          this.querystring = this.querystring.split('#')[0];
+        }
+      }
+
+      /**
+       * Push state.
+       *
+       * @api private
+       */
+
+      Context.prototype.pushState = function() {
+        var page = this.page;
+        var window = page._window;
+        var hashbang = page._hashbang;
+
+        page.len++;
+        if (hasHistory) {
+            window.history.pushState(this.state, this.title,
+              hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+        }
+      };
+
+      /**
+       * Save the context state.
+       *
+       * @api public
+       */
+
+      Context.prototype.save = function() {
+        var page = this.page;
+        if (hasHistory) {
+            page._window.history.replaceState(this.state, this.title,
+              page._hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+        }
+      };
+
+      /**
+       * Initialize `Route` with the given HTTP `path`,
+       * and an array of `callbacks` and `options`.
+       *
+       * Options:
+       *
+       *   - `sensitive`    enable case-sensitive routes
+       *   - `strict`       enable strict matching for trailing slashes
+       *
+       * @constructor
+       * @param {string} path
+       * @param {Object=} options
+       * @api private
+       */
+
+      function Route(path, options, page) {
+        var _page = this.page = page || globalPage;
+        var opts = options || {};
+        opts.strict = opts.strict || _page._strict;
+        this.path = (path === '*') ? '(.*)' : path;
+        this.method = 'GET';
+        this.regexp = pathToRegexp_1(this.path, this.keys = [], opts);
+      }
+
+      /**
+       * Return route middleware with
+       * the given callback `fn()`.
+       *
+       * @param {Function} fn
+       * @return {Function}
+       * @api public
+       */
+
+      Route.prototype.middleware = function(fn) {
+        var self = this;
+        return function(ctx, next) {
+          if (self.match(ctx.path, ctx.params)) {
+            ctx.routePath = self.path;
+            return fn(ctx, next);
+          }
+          next();
+        };
+      };
+
+      /**
+       * Check if this route matches `path`, if so
+       * populate `params`.
+       *
+       * @param {string} path
+       * @param {Object} params
+       * @return {boolean}
+       * @api private
+       */
+
+      Route.prototype.match = function(path, params) {
+        var keys = this.keys,
+          qsIndex = path.indexOf('?'),
+          pathname = ~qsIndex ? path.slice(0, qsIndex) : path,
+          m = this.regexp.exec(decodeURIComponent(pathname));
+
+        if (!m) return false;
+
+        delete params[0];
+
+        for (var i = 1, len = m.length; i < len; ++i) {
+          var key = keys[i - 1];
+          var val = this.page._decodeURLEncodedURIComponent(m[i]);
+          if (val !== undefined || !(hasOwnProperty.call(params, key.name))) {
+            params[key.name] = val;
+          }
+        }
+
+        return true;
+      };
+
+
+      /**
+       * Module exports.
+       */
+
+      var globalPage = createPage();
+      var page_js = globalPage;
+      var default_1 = globalPage;
+
+    page_js.default = default_1;
+
+    return page_js;
+
+    })));
+    });
 
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation.
@@ -482,7 +1729,6 @@ var app = (function () {
         catch (_b) {
             // If this fails, it isn't the end of the world.
         }
-    //# sourceMappingURL=invariant.esm.js.map
 
     function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
@@ -4378,7 +5624,6 @@ var app = (function () {
         }
         return result;
     }
-    //# sourceMappingURL=directives.js.map
 
     function getFragmentQueryDocument(document, fragmentName) {
         var actualFragmentName = fragmentName;
@@ -4437,7 +5682,6 @@ var app = (function () {
                 return null;
         }
     }
-    //# sourceMappingURL=fragments.js.map
 
     var fastJsonStableStringify = function (data, opts) {
         if (!opts) opts = {};
@@ -4675,7 +5919,6 @@ var app = (function () {
     function isField(selection) {
         return selection.kind === 'Field';
     }
-    //# sourceMappingURL=storeUtils.js.map
 
     function checkDocument(doc) {
         process.env.NODE_ENV === "production" ? invariant(doc && doc.kind === 'Document', 45) : invariant(doc && doc.kind === 'Document', "Expecting a parsed GraphQL document. Perhaps you need to wrap the query string in a \"gql\" tag? http://docs.apollostack.com/apollo-client/core.html#gql");
@@ -4743,7 +5986,6 @@ var app = (function () {
         }
         return defaultValues;
     }
-    //# sourceMappingURL=getFromAST.js.map
 
     var TYPENAME_FIELD = {
         kind: 'Field',
@@ -4786,9 +6028,8 @@ var app = (function () {
     addTypenameToDocument.added = function (field) {
         return field === TYPENAME_FIELD;
     };
-    //# sourceMappingURL=transform.js.map
 
-    var hasOwnProperty = Object.prototype.hasOwnProperty;
+    var hasOwnProperty$1 = Object.prototype.hasOwnProperty;
     function mergeDeepArray(sources) {
         var target = sources[0] || {};
         var count = sources.length;
@@ -4821,7 +6062,7 @@ var app = (function () {
             }
             if (isObject(source) && isObject(target)) {
                 Object.keys(source).forEach(function (sourceKey) {
-                    if (hasOwnProperty.call(target, sourceKey)) {
+                    if (hasOwnProperty$1.call(target, sourceKey)) {
                         var targetValue = target[sourceKey];
                         if (source[sourceKey] !== targetValue) {
                             var result = _this.reconciler.apply(_this, __spreadArrays([target, source, sourceKey], context));
@@ -4854,19 +6095,6 @@ var app = (function () {
         };
         return DeepMerger;
     }());
-    //# sourceMappingURL=mergeDeep.js.map
-
-    function unwrapExports (x) {
-    	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-    }
-
-    function createCommonjsModule(fn, module) {
-    	return module = { exports: {} }, fn(module, module.exports), module.exports;
-    }
-
-    function getCjsExportFromNamespace (n) {
-    	return n && n['default'] || n;
-    }
 
     var Observable_1 = createCommonjsModule(function (module, exports) {
 
@@ -5539,7 +6767,6 @@ var app = (function () {
     var result = symbolObservablePonyfill(root);
 
     zenObservable.prototype['@@observable'] = function () { return this; };
-    //# sourceMappingURL=Observable.js.map
 
     var toString = Object.prototype.toString;
     function cloneDeep(value) {
@@ -5573,7 +6800,6 @@ var app = (function () {
                 return val;
         }
     }
-    //# sourceMappingURL=cloneDeep.js.map
 
     function getEnv() {
         if (typeof process !== 'undefined' && process.env.NODE_ENV) {
@@ -5590,7 +6816,6 @@ var app = (function () {
     function isTest() {
         return isEnv('test') === true;
     }
-    //# sourceMappingURL=environment.js.map
 
     function isObject$1(value) {
         return value !== null && typeof value === "object";
@@ -5615,14 +6840,12 @@ var app = (function () {
         }
         return obj;
     }
-    //# sourceMappingURL=maybeDeepFreeze.js.map
 
     function iterateObserversSafely(observers, method, argument) {
         var observersWithMethod = [];
         observers.forEach(function (obs) { return obs[method] && observersWithMethod.push(obs); });
         observersWithMethod.forEach(function (obs) { return obs[method](argument); });
     }
-    //# sourceMappingURL=iteration.js.map
 
     function fixObservableSubclass(subclass) {
         function set(key) {
@@ -5634,7 +6857,6 @@ var app = (function () {
         set("@@species");
         return subclass;
     }
-    //# sourceMappingURL=subclassing.js.map
 
     function isPromiseLike(value) {
         return value && typeof value.then === "function";
@@ -5766,16 +6988,13 @@ var app = (function () {
         return Concast;
     }(zenObservable));
     fixObservableSubclass(Concast);
-    //# sourceMappingURL=Concast.js.map
 
     function isNonEmptyArray(value) {
         return Array.isArray(value) && value.length > 0;
     }
-    //# sourceMappingURL=arrays.js.map
 
     var canUseWeakMap = typeof WeakMap === 'function' && !(typeof navigator === 'object' &&
         navigator.product === 'ReactNative');
-    //# sourceMappingURL=canUse.js.map
 
     function compact() {
         var objects = [];
@@ -5795,14 +7014,12 @@ var app = (function () {
         });
         return result;
     }
-    //# sourceMappingURL=compact.js.map
 
     function fromError(errorValue) {
         return new zenObservable(function (observer) {
             observer.error(errorValue);
         });
     }
-    //# sourceMappingURL=fromError.js.map
 
     var throwServerError = function (response, result, message) {
         var error = new Error(message);
@@ -5812,7 +7029,6 @@ var app = (function () {
         error.result = result;
         throw error;
     };
-    //# sourceMappingURL=throwServerError.js.map
 
     function validateOperation(operation) {
         var OPERATION_FIELDS = [
@@ -5830,7 +7046,6 @@ var app = (function () {
         }
         return operation;
     }
-    //# sourceMappingURL=validateOperation.js.map
 
     function createOperation(starting, operation) {
         var context = __assign({}, starting);
@@ -5853,7 +7068,6 @@ var app = (function () {
         });
         return operation;
     }
-    //# sourceMappingURL=createOperation.js.map
 
     function transformOperation(operation) {
         var transformedOperation = {
@@ -5870,7 +7084,6 @@ var app = (function () {
         }
         return transformedOperation;
     }
-    //# sourceMappingURL=transformOperation.js.map
 
     function passthrough(op, forward) {
         return (forward ? forward(op) : zenObservable.of());
@@ -5966,9 +7179,8 @@ var app = (function () {
         };
         return ApolloLink;
     }());
-    //# sourceMappingURL=ApolloLink.js.map
 
-    var hasOwnProperty$1 = Object.prototype.hasOwnProperty;
+    var hasOwnProperty$2 = Object.prototype.hasOwnProperty;
     function parseAndCheckHttpResponse(operations) {
         return function (response) { return response
             .text()
@@ -5990,8 +7202,8 @@ var app = (function () {
                 throwServerError(response, result, "Response not successful: Received status code " + response.status);
             }
             if (!Array.isArray(result) &&
-                !hasOwnProperty$1.call(result, 'data') &&
-                !hasOwnProperty$1.call(result, 'errors')) {
+                !hasOwnProperty$2.call(result, 'data') &&
+                !hasOwnProperty$2.call(result, 'errors')) {
                 throwServerError(response, result, "Server response was missing for query '" + (Array.isArray(operations)
                     ? operations.map(function (op) { return op.operationName; })
                     : operations.operationName) + "'.");
@@ -5999,7 +7211,6 @@ var app = (function () {
             return result;
         }); };
     }
-    //# sourceMappingURL=parseAndCheckHttpResponse.js.map
 
     var serializeFetchParameter = function (p, label) {
         var serialized;
@@ -6013,7 +7224,6 @@ var app = (function () {
         }
         return serialized;
     };
-    //# sourceMappingURL=serializeFetchParameter.js.map
 
     var defaultHttpOptions = {
         includeQuery: true,
@@ -6055,14 +7265,12 @@ var app = (function () {
             body: body,
         };
     };
-    //# sourceMappingURL=selectHttpOptionsAndBody.js.map
 
     var checkFetcher = function (fetcher) {
         if (!fetcher && typeof fetch === 'undefined') {
             throw process.env.NODE_ENV === "production" ? new InvariantError(22) : new InvariantError("\n\"fetch\" has not been found globally and no fetcher has been configured. To fix this, install a fetch package (like https://www.npmjs.com/package/cross-fetch), instantiate the fetcher, and pass it into your HttpLink constructor. For example:\n\nimport fetch from 'cross-fetch';\nimport { ApolloClient, HttpLink } from '@apollo/client';\nconst client = new ApolloClient({\n  link: new HttpLink({ uri: '/graphql', fetch })\n});\n    ");
         }
     };
-    //# sourceMappingURL=checkFetcher.js.map
 
     var createSignalIfSupported = function () {
         if (typeof AbortController === 'undefined')
@@ -6071,7 +7279,6 @@ var app = (function () {
         var signal = controller.signal;
         return { controller: controller, signal: signal };
     };
-    //# sourceMappingURL=createSignalIfSupported.js.map
 
     var selectURI = function (operation, fallbackURI) {
         var context = operation.getContext();
@@ -6086,7 +7293,6 @@ var app = (function () {
             return fallbackURI || '/graphql';
         }
     };
-    //# sourceMappingURL=selectURI.js.map
 
     function rewriteURIForGET(chosenURI, body) {
         var queryParams = [];
@@ -6129,7 +7335,6 @@ var app = (function () {
         var newURI = preFragment + queryParamsPrefix + queryParams.join('&') + fragment;
         return { newURI: newURI };
     }
-    //# sourceMappingURL=rewriteURIForGET.js.map
 
     var createHttpLink = function (linkOptions) {
         if (linkOptions === void 0) { linkOptions = {}; }
@@ -6237,7 +7442,6 @@ var app = (function () {
             });
         });
     };
-    //# sourceMappingURL=createHttpLink.js.map
 
     var HttpLink = (function (_super) {
         __extends(HttpLink, _super);
@@ -6249,9 +7453,8 @@ var app = (function () {
         }
         return HttpLink;
     }(ApolloLink));
-    //# sourceMappingURL=HttpLink.js.map
 
-    var _a$1 = Object.prototype, toString$1 = _a$1.toString, hasOwnProperty$2 = _a$1.hasOwnProperty;
+    var _a$1 = Object.prototype, toString$1 = _a$1.toString, hasOwnProperty$3 = _a$1.hasOwnProperty;
     var fnToStr = Function.prototype.toString;
     var previousComparisons = new Map();
     /**
@@ -6299,7 +7502,7 @@ var app = (function () {
                     return false;
                 // Now make sure they have the same keys.
                 for (var k = 0; k < keyCount; ++k) {
-                    if (!hasOwnProperty$2.call(b, aKeys[k])) {
+                    if (!hasOwnProperty$3.call(b, aKeys[k])) {
                         return false;
                     }
                 }
@@ -6424,7 +7627,6 @@ var app = (function () {
         bSet.add(b);
         return false;
     }
-    //# sourceMappingURL=equality.esm.js.map
 
     var generateErrorMessage = function (err) {
         var message = '';
@@ -6456,7 +7658,6 @@ var app = (function () {
         }
         return ApolloError;
     }(Error));
-    //# sourceMappingURL=index.js.map
 
     var NetworkStatus;
     (function (NetworkStatus) {
@@ -6471,7 +7672,6 @@ var app = (function () {
     function isNetworkRequestInFlight(networkStatus) {
         return networkStatus ? networkStatus < 7 : false;
     }
-    //# sourceMappingURL=networkStatus.js.map
 
     var Reobserver = (function () {
         function Reobserver(observer, options, fetch, shouldFetch) {
@@ -6554,7 +7754,6 @@ var app = (function () {
         };
         return Reobserver;
     }());
-    //# sourceMappingURL=Reobserver.js.map
 
     var warnedAboutUpdateQuery = false;
     var ObservableQuery = (function (_super) {
@@ -6893,7 +8092,6 @@ var app = (function () {
     function defaultSubscriptionObserverErrorCallback(error) {
         process.env.NODE_ENV === "production" || invariant.error('Unhandled error', error.message, error.stack);
     }
-    //# sourceMappingURL=ObservableQuery.js.map
 
     // A [trie](https://en.wikipedia.org/wiki/Trie) data structure that holds
     // object keys weakly, yet can also hold non-object keys, unlike the
@@ -6944,7 +8142,6 @@ var app = (function () {
         }
         return false;
     }
-    //# sourceMappingURL=trie.esm.js.map
 
     // This currentContext variable will only be used if the makeSlotClass
     // function is called, which happens only if this is the first copy of the
@@ -7084,7 +8281,6 @@ var app = (function () {
     }();
 
     var bind = Slot.bind, noContext = Slot.noContext;
-    //# sourceMappingURL=context.esm.js.map
 
     function defaultDispose() { }
     var Cache = /** @class */ (function () {
@@ -7547,7 +8743,6 @@ var app = (function () {
         };
         return optimistic;
     }
-    //# sourceMappingURL=bundle.esm.js.map
 
     var ApolloCache = (function () {
         function ApolloCache() {
@@ -7611,7 +8806,6 @@ var app = (function () {
         };
         return ApolloCache;
     }());
-    //# sourceMappingURL=cache.js.map
 
     var MissingFieldError = (function () {
         function MissingFieldError(message, path, query, clientOnly, variables) {
@@ -7623,7 +8817,6 @@ var app = (function () {
         }
         return MissingFieldError;
     }());
-    //# sourceMappingURL=common.js.map
 
     var hasOwn = Object.prototype.hasOwnProperty;
     function getTypenameFromStoreObject(store, objectOrReference) {
@@ -7661,7 +8854,6 @@ var app = (function () {
     function makeProcessedFieldsMerger() {
         return new DeepMerger;
     }
-    //# sourceMappingURL=helpers.js.map
 
     var DELETE = Object.create(null);
     var delModifier = function () { return DELETE; };
@@ -8062,7 +9254,6 @@ var app = (function () {
     function supportsResultCaching(store) {
         return !!(store instanceof EntityStore && store.group.caching);
     }
-    //# sourceMappingURL=entityStore.js.map
 
     function missingFromInvariant(err, context) {
         return new MissingFieldError(err.message, context.path.slice(), context.query, context.clientOnly, context.variables);
@@ -8287,7 +9478,6 @@ var app = (function () {
             });
         }
     }
-    //# sourceMappingURL=readFromStore.js.map
 
     var StoreWriter = (function () {
         function StoreWriter(cache, reader) {
@@ -8550,7 +9740,6 @@ var app = (function () {
                 childTypenames.join(" and ") + " have an ID or a custom merge function, or "
             : "") + "define a custom merge function for the " + typeDotName + " field, so InMemoryCache can safely merge these objects:\n\n  existing: " + JSON.stringify(existing).slice(0, 1000) + "\n  incoming: " + JSON.stringify(incoming).slice(0, 1000) + "\n\nFor more information about these options, please refer to the documentation:\n\n  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers\n  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects\n");
     }
-    //# sourceMappingURL=writeToStore.js.map
 
     var cacheSlot = new Slot();
     function consumeAndIterate(set, callback) {
@@ -8620,7 +9809,6 @@ var app = (function () {
             cache.broadcastWatches();
         }
     }
-    //# sourceMappingURL=reactiveVars.js.map
 
     function argsFromFieldSpecifier(spec) {
         return spec.args !== void 0 ? spec.args :
@@ -9081,7 +10269,6 @@ var app = (function () {
         });
         return keyObj;
     }
-    //# sourceMappingURL=policies.js.map
 
     var defaultConfig = {
         dataIdFromObject: defaultDataIdFromObject,
@@ -9324,7 +10511,6 @@ var app = (function () {
         };
         return InMemoryCache;
     }(ApolloCache));
-    //# sourceMappingURL=inMemoryCache.js.map
 
     var docCache = new Map();
     var fragmentSourceMap = new Map();
@@ -9439,11 +10625,9 @@ var app = (function () {
         enableExperimentalFragmentVariables: enableExperimentalFragmentVariables,
         disableExperimentalFragmentVariables: disableExperimentalFragmentVariables
     });
-    //# sourceMappingURL=index.js.map
 
     setVerbosity("log");
     var resetCaches$1 = gql$1.resetCaches, disableFragmentWarnings$1 = gql$1.disableFragmentWarnings, enableExperimentalFragmentVariables$1 = gql$1.enableExperimentalFragmentVariables, disableExperimentalFragmentVariables$1 = gql$1.disableExperimentalFragmentVariables;
-    //# sourceMappingURL=index.js.map
 
     var CLIENT = typeof Symbol !== "undefined" ? Symbol("client") : "@@client";
     function getClient() {
@@ -9489,7 +10673,6 @@ var app = (function () {
             return client.mutate(__assign$1({ mutation: mutation }, options));
         };
     }
-    //# sourceMappingURL=svelte-apollo.es.js.map
 
     var parser$1 = getCjsExportFromNamespace(parser);
 
@@ -9683,7 +10866,7 @@ var app = (function () {
     	return child_ctx;
     }
 
-    // (127:2) {:else}
+    // (130:2) {:else}
     function create_else_block(ctx) {
     	var h1, t1, label0, t3, input0, t4, label1, t6, input1, t7, button, t8, show_if = ctx.Object.keys(ctx.errors).length > 0, if_block1_anchor, dispose;
 
@@ -9718,22 +10901,22 @@ var app = (function () {
     			if (if_block1) if_block1.c();
     			if_block1_anchor = empty();
     			attr(h1, "class", "svelte-nko1zo");
-    			add_location(h1, file, 127, 4, 2645);
+    			add_location(h1, file, 130, 4, 2709);
     			attr(label0, "class", "svelte-nko1zo");
-    			add_location(label0, file, 129, 4, 2664);
+    			add_location(label0, file, 132, 4, 2728);
     			attr(input0, "name", "email");
     			attr(input0, "placeholder", "name@example.com");
     			attr(input0, "class", "svelte-nko1zo");
-    			add_location(input0, file, 130, 4, 2690);
+    			add_location(input0, file, 133, 4, 2754);
     			attr(label1, "class", "svelte-nko1zo");
-    			add_location(label1, file, 132, 4, 2770);
+    			add_location(label1, file, 135, 4, 2834);
     			attr(input1, "name", "password");
     			attr(input1, "type", "password");
     			attr(input1, "class", "svelte-nko1zo");
-    			add_location(input1, file, 133, 4, 2799);
+    			add_location(input1, file, 136, 4, 2863);
     			attr(button, "type", "submit");
     			attr(button, "class", "svelte-nko1zo");
-    			add_location(button, file, 135, 4, 2870);
+    			add_location(button, file, 138, 4, 2934);
 
     			dispose = [
     				listen(input0, "input", ctx.input0_input_handler),
@@ -9826,7 +11009,7 @@ var app = (function () {
     	};
     }
 
-    // (121:2) {#if isSuccess}
+    // (124:2) {#if isSuccess}
     function create_if_block(ctx) {
     	var div, t0, br, t1;
 
@@ -9836,9 +11019,9 @@ var app = (function () {
     			t0 = text("🔓\r\n      ");
     			br = element("br");
     			t1 = text("\r\n      You've been successfully logged in.");
-    			add_location(br, file, 123, 6, 2567);
+    			add_location(br, file, 126, 6, 2631);
     			attr(div, "class", "success svelte-nko1zo");
-    			add_location(div, file, 121, 4, 2528);
+    			add_location(div, file, 124, 4, 2592);
     		},
 
     		m: function mount(target, anchor) {
@@ -9858,7 +11041,7 @@ var app = (function () {
     	};
     }
 
-    // (137:34) {:else}
+    // (140:34) {:else}
     function create_else_block_1(ctx) {
     	var t;
 
@@ -9879,7 +11062,7 @@ var app = (function () {
     	};
     }
 
-    // (137:6) {#if isLoading}
+    // (140:6) {#if isLoading}
     function create_if_block_2(ctx) {
     	var t;
 
@@ -9900,7 +11083,7 @@ var app = (function () {
     	};
     }
 
-    // (140:4) {#if Object.keys(errors).length > 0}
+    // (143:4) {#if Object.keys(errors).length > 0}
     function create_if_block_1(ctx) {
     	var ul;
 
@@ -9920,7 +11103,7 @@ var app = (function () {
     				each_blocks[i].c();
     			}
     			attr(ul, "class", "errors svelte-nko1zo");
-    			add_location(ul, file, 140, 6, 3016);
+    			add_location(ul, file, 143, 6, 3080);
     		},
 
     		m: function mount(target, anchor) {
@@ -9964,7 +11147,7 @@ var app = (function () {
     	};
     }
 
-    // (142:8) {#each Object.keys(errors) as field}
+    // (145:8) {#each Object.keys(errors) as field}
     function create_each_block(ctx) {
     	var li, t0_value = ctx.field + "", t0, t1, t2_value = ctx.errors[ctx.field] + "", t2;
 
@@ -9974,7 +11157,7 @@ var app = (function () {
     			t0 = text(t0_value);
     			t1 = text(": ");
     			t2 = text(t2_value);
-    			add_location(li, file, 142, 10, 3093);
+    			add_location(li, file, 145, 10, 3157);
     		},
 
     		m: function mount(target, anchor) {
@@ -10018,7 +11201,7 @@ var app = (function () {
     			form = element("form");
     			if_block.c();
     			attr(form, "class", "svelte-nko1zo");
-    			add_location(form, file, 119, 0, 2457);
+    			add_location(form, file, 122, 0, 2521);
     			dispose = listen(form, "submit", prevent_default(ctx.handleSubmit));
     		},
 
@@ -10068,8 +11251,10 @@ var app = (function () {
       let errors = {};
       const REGISTER = src`
     mutation($email: String!, $password:String!){
-      register(email: $email, password: $password){
-        id
+      login(email: $email, password: $password){
+        id,
+        email,
+        createdAt
       }
     }
   `;
@@ -10099,6 +11284,7 @@ var app = (function () {
                 } else {
                   $$invalidate('isSuccess', isSuccess = true);
                   $$invalidate('isLoading', isLoading = false);
+                  console.log(id);
                 }
               }
               
@@ -10133,6 +11319,531 @@ var app = (function () {
     		init(this, options, instance, create_fragment, safe_not_equal, []);
     	}
     }
+
+    /* src\PageNotExists.svelte generated by Svelte v3.9.1 */
+
+    const file$1 = "src\\PageNotExists.svelte";
+
+    function create_fragment$1(ctx) {
+    	var div;
+
+    	return {
+    		c: function create() {
+    			div = element("div");
+    			div.textContent = "Page does Not Exists";
+    			add_location(div, file$1, 0, 0, 0);
+    		},
+
+    		l: function claim(nodes) {
+    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, div, anchor);
+    		},
+
+    		p: noop,
+    		i: noop,
+    		o: noop,
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(div);
+    			}
+    		}
+    	};
+    }
+
+    class PageNotExists extends SvelteComponentDev {
+    	constructor(options) {
+    		super(options);
+    		init(this, options, null, create_fragment$1, safe_not_equal, []);
+    	}
+    }
+
+    /* src\SignUp.svelte generated by Svelte v3.9.1 */
+    const { Object: Object_1$1 } = globals;
+
+    const file$2 = "src\\SignUp.svelte";
+
+    function get_each_context$1(ctx, list, i) {
+    	const child_ctx = Object_1$1.create(ctx);
+    	child_ctx.field = list[i];
+    	return child_ctx;
+    }
+
+    // (130:4) {:else}
+    function create_else_block$1(ctx) {
+    	var h1, t1, label0, t3, input0, t4, label1, t6, input1, t7, button, t8, show_if = ctx.Object.keys(ctx.errors).length > 0, if_block1_anchor, dispose;
+
+    	function select_block_type_1(changed, ctx) {
+    		if (ctx.isLoading) return create_if_block_2$1;
+    		return create_else_block_1$1;
+    	}
+
+    	var current_block_type = select_block_type_1(null, ctx);
+    	var if_block0 = current_block_type(ctx);
+
+    	var if_block1 = (show_if) && create_if_block_1$1(ctx);
+
+    	return {
+    		c: function create() {
+    			h1 = element("h1");
+    			h1.textContent = "👤";
+    			t1 = space();
+    			label0 = element("label");
+    			label0.textContent = "Email";
+    			t3 = space();
+    			input0 = element("input");
+    			t4 = space();
+    			label1 = element("label");
+    			label1.textContent = "Password";
+    			t6 = space();
+    			input1 = element("input");
+    			t7 = space();
+    			button = element("button");
+    			if_block0.c();
+    			t8 = space();
+    			if (if_block1) if_block1.c();
+    			if_block1_anchor = empty();
+    			attr(h1, "class", "svelte-demdw");
+    			add_location(h1, file$2, 130, 6, 2972);
+    			attr(label0, "class", "svelte-demdw");
+    			add_location(label0, file$2, 132, 6, 2995);
+    			attr(input0, "name", "email");
+    			attr(input0, "placeholder", "name@example.com");
+    			attr(input0, "class", "svelte-demdw");
+    			add_location(input0, file$2, 133, 6, 3023);
+    			attr(label1, "class", "svelte-demdw");
+    			add_location(label1, file$2, 135, 6, 3107);
+    			attr(input1, "name", "password");
+    			attr(input1, "type", "password");
+    			attr(input1, "class", "svelte-demdw");
+    			add_location(input1, file$2, 136, 6, 3138);
+    			attr(button, "type", "submit");
+    			attr(button, "class", "svelte-demdw");
+    			add_location(button, file$2, 138, 6, 3213);
+
+    			dispose = [
+    				listen(input0, "input", ctx.input0_input_handler),
+    				listen(input1, "input", ctx.input1_input_handler)
+    			];
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, h1, anchor);
+    			insert(target, t1, anchor);
+    			insert(target, label0, anchor);
+    			insert(target, t3, anchor);
+    			insert(target, input0, anchor);
+
+    			set_input_value(input0, ctx.email);
+
+    			insert(target, t4, anchor);
+    			insert(target, label1, anchor);
+    			insert(target, t6, anchor);
+    			insert(target, input1, anchor);
+
+    			set_input_value(input1, ctx.password);
+
+    			insert(target, t7, anchor);
+    			insert(target, button, anchor);
+    			if_block0.m(button, null);
+    			insert(target, t8, anchor);
+    			if (if_block1) if_block1.m(target, anchor);
+    			insert(target, if_block1_anchor, anchor);
+    		},
+
+    		p: function update(changed, ctx) {
+    			if (changed.email && (input0.value !== ctx.email)) set_input_value(input0, ctx.email);
+    			if (changed.password && (input1.value !== ctx.password)) set_input_value(input1, ctx.password);
+
+    			if (current_block_type !== (current_block_type = select_block_type_1(changed, ctx))) {
+    				if_block0.d(1);
+    				if_block0 = current_block_type(ctx);
+    				if (if_block0) {
+    					if_block0.c();
+    					if_block0.m(button, null);
+    				}
+    			}
+
+    			if (changed.errors) show_if = ctx.Object.keys(ctx.errors).length > 0;
+
+    			if (show_if) {
+    				if (if_block1) {
+    					if_block1.p(changed, ctx);
+    				} else {
+    					if_block1 = create_if_block_1$1(ctx);
+    					if_block1.c();
+    					if_block1.m(if_block1_anchor.parentNode, if_block1_anchor);
+    				}
+    			} else if (if_block1) {
+    				if_block1.d(1);
+    				if_block1 = null;
+    			}
+    		},
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(h1);
+    				detach(t1);
+    				detach(label0);
+    				detach(t3);
+    				detach(input0);
+    				detach(t4);
+    				detach(label1);
+    				detach(t6);
+    				detach(input1);
+    				detach(t7);
+    				detach(button);
+    			}
+
+    			if_block0.d();
+
+    			if (detaching) {
+    				detach(t8);
+    			}
+
+    			if (if_block1) if_block1.d(detaching);
+
+    			if (detaching) {
+    				detach(if_block1_anchor);
+    			}
+
+    			run_all(dispose);
+    		}
+    	};
+    }
+
+    // (124:4) {#if isSuccess}
+    function create_if_block$1(ctx) {
+    	var div, t0, br, t1;
+
+    	return {
+    		c: function create() {
+    			div = element("div");
+    			t0 = text("🔓\r\n        ");
+    			br = element("br");
+    			t1 = text("\r\n        You've been successfully logged in.");
+    			add_location(br, file$2, 126, 8, 2886);
+    			attr(div, "class", "success svelte-demdw");
+    			add_location(div, file$2, 124, 6, 2843);
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, div, anchor);
+    			append(div, t0);
+    			append(div, br);
+    			append(div, t1);
+    		},
+
+    		p: noop,
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(div);
+    			}
+    		}
+    	};
+    }
+
+    // (140:36) {:else}
+    function create_else_block_1$1(ctx) {
+    	var t;
+
+    	return {
+    		c: function create() {
+    			t = text("Log in 🔒");
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, t, anchor);
+    		},
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(t);
+    			}
+    		}
+    	};
+    }
+
+    // (140:8) {#if isLoading}
+    function create_if_block_2$1(ctx) {
+    	var t;
+
+    	return {
+    		c: function create() {
+    			t = text("Logging in...");
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, t, anchor);
+    		},
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(t);
+    			}
+    		}
+    	};
+    }
+
+    // (143:6) {#if Object.keys(errors).length > 0}
+    function create_if_block_1$1(ctx) {
+    	var ul;
+
+    	var each_value = ctx.Object.keys(ctx.errors);
+
+    	var each_blocks = [];
+
+    	for (var i = 0; i < each_value.length; i += 1) {
+    		each_blocks[i] = create_each_block$1(get_each_context$1(ctx, each_value, i));
+    	}
+
+    	return {
+    		c: function create() {
+    			ul = element("ul");
+
+    			for (var i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].c();
+    			}
+    			attr(ul, "class", "errors svelte-demdw");
+    			add_location(ul, file$2, 143, 8, 3369);
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, ul, anchor);
+
+    			for (var i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(ul, null);
+    			}
+    		},
+
+    		p: function update(changed, ctx) {
+    			if (changed.errors || changed.Object) {
+    				each_value = ctx.Object.keys(ctx.errors);
+
+    				for (var i = 0; i < each_value.length; i += 1) {
+    					const child_ctx = get_each_context$1(ctx, each_value, i);
+
+    					if (each_blocks[i]) {
+    						each_blocks[i].p(changed, child_ctx);
+    					} else {
+    						each_blocks[i] = create_each_block$1(child_ctx);
+    						each_blocks[i].c();
+    						each_blocks[i].m(ul, null);
+    					}
+    				}
+
+    				for (; i < each_blocks.length; i += 1) {
+    					each_blocks[i].d(1);
+    				}
+    				each_blocks.length = each_value.length;
+    			}
+    		},
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(ul);
+    			}
+
+    			destroy_each(each_blocks, detaching);
+    		}
+    	};
+    }
+
+    // (145:10) {#each Object.keys(errors) as field}
+    function create_each_block$1(ctx) {
+    	var li, t0_value = ctx.field + "", t0, t1, t2_value = ctx.errors[ctx.field] + "", t2;
+
+    	return {
+    		c: function create() {
+    			li = element("li");
+    			t0 = text(t0_value);
+    			t1 = text(": ");
+    			t2 = text(t2_value);
+    			add_location(li, file$2, 145, 12, 3450);
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, li, anchor);
+    			append(li, t0);
+    			append(li, t1);
+    			append(li, t2);
+    		},
+
+    		p: function update(changed, ctx) {
+    			if ((changed.errors) && t0_value !== (t0_value = ctx.field + "")) {
+    				set_data(t0, t0_value);
+    			}
+
+    			if ((changed.errors) && t2_value !== (t2_value = ctx.errors[ctx.field] + "")) {
+    				set_data(t2, t2_value);
+    			}
+    		},
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(li);
+    			}
+    		}
+    	};
+    }
+
+    function create_fragment$2(ctx) {
+    	var form, dispose;
+
+    	function select_block_type(changed, ctx) {
+    		if (ctx.isSuccess) return create_if_block$1;
+    		return create_else_block$1;
+    	}
+
+    	var current_block_type = select_block_type(null, ctx);
+    	var if_block = current_block_type(ctx);
+
+    	return {
+    		c: function create() {
+    			form = element("form");
+    			if_block.c();
+    			attr(form, "class", "svelte-demdw");
+    			add_location(form, file$2, 122, 2, 2768);
+    			dispose = listen(form, "submit", prevent_default(ctx.handleSubmit));
+    		},
+
+    		l: function claim(nodes) {
+    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    		},
+
+    		m: function mount(target, anchor) {
+    			insert(target, form, anchor);
+    			if_block.m(form, null);
+    		},
+
+    		p: function update(changed, ctx) {
+    			if (current_block_type === (current_block_type = select_block_type(changed, ctx)) && if_block) {
+    				if_block.p(changed, ctx);
+    			} else {
+    				if_block.d(1);
+    				if_block = current_block_type(ctx);
+    				if (if_block) {
+    					if_block.c();
+    					if_block.m(form, null);
+    				}
+    			}
+    		},
+
+    		i: noop,
+    		o: noop,
+
+    		d: function destroy(detaching) {
+    			if (detaching) {
+    				detach(form);
+    			}
+
+    			if_block.d();
+    			dispose();
+    		}
+    	};
+    }
+
+    function instance$1($$self, $$props, $$invalidate) {
+    	
+      
+        let isLoading = false;
+      
+        let isSuccess = false;
+      
+        let errors = {};
+        const REGISTER = src`
+      mutation($email: String!, $password:String!){
+        register(email: $email, password: $password){
+          id,
+          email,
+          createdAt
+        }
+      }
+    `;
+        const register = mutation(REGISTER);
+        let email = "";
+        let password = "";
+        async function handleSubmit() {
+          $$invalidate('errors', errors = {});
+      
+          if (email.length === 0) {
+            errors.email = "Field should not be empty"; $$invalidate('errors', errors);
+          }
+          if (password.length === 0) {
+            errors.password = "Field should not be empty"; $$invalidate('errors', errors);
+          }
+      
+          if (Object.keys(errors).length === 0) {
+            $$invalidate('isLoading', isLoading = true);
+            try {
+                  await register({ variables: { email, password } });
+                } catch (error) {
+                  errors.server = error; $$invalidate('errors', errors);
+                  $$invalidate('isLoading', isLoading = false);
+                } finally {
+                  if (isLoading === false) {
+                    $$invalidate('isSuccess', isSuccess = false);
+                  } else {
+                    $$invalidate('isSuccess', isSuccess = true);
+                    $$invalidate('isLoading', isLoading = false);
+                    console.log(id);
+                  }
+                }
+                
+          }
+        }
+    	function input0_input_handler() {
+    		email = this.value;
+    		$$invalidate('email', email);
+    	}
+
+    	function input1_input_handler() {
+    		password = this.value;
+    		$$invalidate('password', password);
+    	}
+
+    	return {
+    		isLoading,
+    		isSuccess,
+    		errors,
+    		email,
+    		password,
+    		handleSubmit,
+    		Object,
+    		input0_input_handler,
+    		input1_input_handler
+    	};
+    }
+
+    class SignUp extends SvelteComponentDev {
+    	constructor(options) {
+    		super(options);
+    		init(this, options, instance$1, create_fragment$2, safe_not_equal, []);
+    	}
+    }
+
+    var routes = [
+    	{
+    		path: '/login',
+    		component: LoginForm
+    	},
+      {
+    		path: '/SignUp',
+    		component: SignUp
+    	},
+    	{
+    		path: '*',
+    		component: PageNotExists
+    	}
+    ];
+
+    const key = "userContext";
+
+    const initialValue = null;
 
     var genericMessage$1 = "Invariant Violation";
     var _a$3 = Object.setPrototypeOf, setPrototypeOf$1 = _a$3 === void 0 ? function (obj, proto) {
@@ -10189,9 +11900,8 @@ var app = (function () {
             // extra care to replace process.env.NODE_ENV in their production builds,
             // or define an appropriate global.process polyfill.
         }
-    //# sourceMappingURL=invariant.esm.js.map
 
-    var _a$4 = Object.prototype, toString$2 = _a$4.toString, hasOwnProperty$3 = _a$4.hasOwnProperty;
+    var _a$4 = Object.prototype, toString$2 = _a$4.toString, hasOwnProperty$4 = _a$4.hasOwnProperty;
     var previousComparisons$1 = new Map();
     /**
      * Performs a deep equality check on two JavaScript values, tolerating cycles.
@@ -10238,7 +11948,7 @@ var app = (function () {
                     return false;
                 // Now make sure they have the same keys.
                 for (var k = 0; k < keyCount; ++k) {
-                    if (!hasOwnProperty$3.call(b, aKeys[k])) {
+                    if (!hasOwnProperty$4.call(b, aKeys[k])) {
                         return false;
                     }
                 }
@@ -10316,7 +12026,6 @@ var app = (function () {
         bSet.add(b);
         return false;
     }
-    //# sourceMappingURL=equality.esm.js.map
 
     function isStringValue$1(value) {
         return value.kind === 'StringValue';
@@ -11042,7 +12751,7 @@ var app = (function () {
         return obj;
     }
 
-    var hasOwnProperty$4 = Object.prototype.hasOwnProperty;
+    var hasOwnProperty$5 = Object.prototype.hasOwnProperty;
     function mergeDeep() {
         var sources = [];
         for (var _i = 0; _i < arguments.length; _i++) {
@@ -11072,7 +12781,7 @@ var app = (function () {
             }
             Object.keys(source).forEach(function (sourceKey) {
                 var sourceValue = source[sourceKey];
-                if (hasOwnProperty$4.call(target, sourceKey)) {
+                if (hasOwnProperty$5.call(target, sourceKey)) {
                     var targetValue = target[sourceKey];
                     if (sourceValue !== targetValue) {
                         target[sourceKey] = mergeHelper(shallowCopyForMerge(targetValue, pastCopies), sourceValue, pastCopies);
@@ -11100,10 +12809,8 @@ var app = (function () {
         }
         return value;
     }
-    //# sourceMappingURL=bundle.esm.js.map
 
     var Observable = zenObservable;
-    //# sourceMappingURL=bundle.esm.js.map
 
     function validateOperation$1(operation) {
         var OPERATION_FIELDS = [
@@ -11258,7 +12965,6 @@ var app = (function () {
     function execute(link, operation) {
         return (link.request(createOperation$1(operation.context, transformOperation$1(validateOperation$1(operation)))) || Observable.of());
     }
-    //# sourceMappingURL=bundle.esm.js.map
 
     function symbolObservablePonyfill$1(root) {
     	var result;
@@ -12205,7 +13911,7 @@ var app = (function () {
         });
     }
 
-    var hasOwnProperty$5 = Object.prototype.hasOwnProperty;
+    var hasOwnProperty$6 = Object.prototype.hasOwnProperty;
     var QueryManager = (function () {
         function QueryManager(_a) {
             var link = _a.link, _b = _a.queryDeduplication, queryDeduplication = _b === void 0 ? false : _b, store = _a.store, _c = _a.onBroadcast, onBroadcast = _c === void 0 ? function () { return undefined; } : _c, _d = _a.ssrMode, ssrMode = _d === void 0 ? false : _d, _e = _a.clientAwareness, clientAwareness = _e === void 0 ? {} : _e, localState = _a.localState, assumeImmutableResults = _a.assumeImmutableResults;
@@ -12264,7 +13970,7 @@ var app = (function () {
                                         if (observableQuery) {
                                             var queryName = observableQuery.queryName;
                                             if (queryName &&
-                                                hasOwnProperty$5.call(updateQueriesByName, queryName)) {
+                                                hasOwnProperty$6.call(updateQueriesByName, queryName)) {
                                                 ret[queryId] = {
                                                     updater: updateQueriesByName[queryName],
                                                     query: _this.queryStore.get(queryId),
@@ -13393,7 +15099,6 @@ var app = (function () {
         };
         return ApolloClient;
     }());
-    //# sourceMappingURL=bundle.esm.js.map
 
     function queryFromPojo(obj) {
         var op = {
@@ -13561,7 +15266,6 @@ var app = (function () {
         };
         return ApolloCache;
     }());
-    //# sourceMappingURL=bundle.esm.js.map
 
     // This currentContext variable will only be used if the makeSlotClass
     // function is called, which happens only if this is the first copy of the
@@ -13701,7 +15405,6 @@ var app = (function () {
     }();
 
     var bind$1 = Slot$1.bind, noContext$1 = Slot$1.noContext;
-    //# sourceMappingURL=context.esm.js.map
 
     function defaultDispose$1() { }
     var Cache$1 = /** @class */ (function () {
@@ -14176,7 +15879,6 @@ var app = (function () {
         };
         return optimistic;
     }
-    //# sourceMappingURL=bundle.esm.js.map
 
     var haveWarned = false;
     function shouldWarn() {
@@ -15105,7 +16807,6 @@ var app = (function () {
         };
         return InMemoryCache;
     }(ApolloCache$1));
-    //# sourceMappingURL=bundle.esm.js.map
 
     var defaultHttpOptions$1 = {
         includeQuery: true,
@@ -15225,7 +16926,6 @@ var app = (function () {
             return fallbackURI || '/graphql';
         }
     };
-    //# sourceMappingURL=bundle.esm.js.map
 
     var createHttpLink$1 = function (linkOptions) {
         if (linkOptions === void 0) { linkOptions = {}; }
@@ -15365,7 +17065,6 @@ var app = (function () {
         }
         return HttpLink;
     }(ApolloLink$1));
-    //# sourceMappingURL=bundle.esm.js.map
 
     function onError(errorHandler) {
         return new ApolloLink$1(function (operation, forward) {
@@ -15445,7 +17144,6 @@ var app = (function () {
         };
         return ErrorLink;
     }(ApolloLink$1));
-    //# sourceMappingURL=bundle.esm.js.map
 
     var PRESET_CONFIG_KEYS = [
         'request',
@@ -15556,26 +17254,35 @@ var app = (function () {
         }
         return DefaultClient;
     }(ApolloClient));
-    //# sourceMappingURL=bundle.esm.js.map
 
     /* src\App.svelte generated by Svelte v3.9.1 */
 
-    const file$1 = "src\\App.svelte";
+    const file$3 = "src\\App.svelte";
 
-    function create_fragment$1(ctx) {
-    	var section, current;
+    function create_fragment$3(ctx) {
+    	var section, main, current;
 
-    	var loginform = new LoginForm({
-    		props: { submit: ctx.submit },
-    		$$inline: true
-    	});
+    	var switch_value = ctx.page;
+
+    	function switch_props(ctx) {
+    		return {
+    			props: { params: ctx.params },
+    			$$inline: true
+    		};
+    	}
+
+    	if (switch_value) {
+    		var switch_instance = new switch_value(switch_props(ctx));
+    	}
 
     	return {
     		c: function create() {
     			section = element("section");
-    			loginform.$$.fragment.c();
+    			main = element("main");
+    			if (switch_instance) switch_instance.$$.fragment.c();
+    			add_location(main, file$3, 77, 2, 1994);
     			attr(section, "class", "svelte-11mbmbh");
-    			add_location(section, file$1, 48, 0, 1189);
+    			add_location(section, file$3, 76, 0, 1981);
     		},
 
     		l: function claim(nodes) {
@@ -15584,25 +17291,54 @@ var app = (function () {
 
     		m: function mount(target, anchor) {
     			insert(target, section, anchor);
-    			mount_component(loginform, section, null);
+    			append(section, main);
+
+    			if (switch_instance) {
+    				mount_component(switch_instance, main, null);
+    			}
+
     			current = true;
     		},
 
     		p: function update(changed, ctx) {
-    			var loginform_changes = {};
-    			if (changed.submit) loginform_changes.submit = ctx.submit;
-    			loginform.$set(loginform_changes);
+    			var switch_instance_changes = {};
+    			if (changed.params) switch_instance_changes.params = ctx.params;
+
+    			if (switch_value !== (switch_value = ctx.page)) {
+    				if (switch_instance) {
+    					group_outros();
+    					const old_component = switch_instance;
+    					transition_out(old_component.$$.fragment, 1, 0, () => {
+    						destroy_component(old_component, 1);
+    					});
+    					check_outros();
+    				}
+
+    				if (switch_value) {
+    					switch_instance = new switch_value(switch_props(ctx));
+
+    					switch_instance.$$.fragment.c();
+    					transition_in(switch_instance.$$.fragment, 1);
+    					mount_component(switch_instance, main, null);
+    				} else {
+    					switch_instance = null;
+    				}
+    			}
+
+    			else if (switch_value) {
+    				switch_instance.$set(switch_instance_changes);
+    			}
     		},
 
     		i: function intro(local) {
     			if (current) return;
-    			transition_in(loginform.$$.fragment, local);
+    			if (switch_instance) transition_in(switch_instance.$$.fragment, local);
 
     			current = true;
     		},
 
     		o: function outro(local) {
-    			transition_out(loginform.$$.fragment, local);
+    			if (switch_instance) transition_out(switch_instance.$$.fragment, local);
     			current = false;
     		},
 
@@ -15611,29 +17347,45 @@ var app = (function () {
     				detach(section);
     			}
 
-    			destroy_component(loginform);
+    			if (switch_instance) destroy_component(switch_instance);
     		}
     	};
     }
 
-    function instance$1($$self) {
+    let user = false;
+
+    function instance$2($$self, $$props, $$invalidate) {
     	
+      let page$1 = null;
+      let params = {};
+      routes.forEach(route => {
+    	// Loop around all of the routes and create a new instance of
+      // router for reach one with some rudimentary checks.
+        page(
+          route.path,
+    			// Set the params variable to the context.
+          // We use this on the component initialisation
+          (ctx, next) => {
+            $$invalidate('params', params = { ...ctx.params });
+            next();
+          },
+    			// Check if auth is valid. If so, set the page to the component
+          // otherwise redirect to login.
+          () => {
+            if (route.auth && !user) {
+              page.redirect("/");
+            } else {
+              $$invalidate('page', page$1 = route.component);
+            }
+          }
+        );
+      });
+
+    	page.start();
 
       onMount(() => {
         setContext(key, initialValue);
       });
-
-      const submit = ({ email, password }) =>
-        new Promise((resolve, reject) => {
-          setTimeout(() => {
-            setContext(key, {
-              name: "Foo",
-              lastName: "Bar",
-              email: "foo@bar.com"
-            });
-            resolve();
-          }, 1000);
-        });
       const client = new DefaultClient({
         uri: "http://localhost:4000/graphql",
         onError: ({ networkError, graphQLErrors }) => {
@@ -15643,21 +17395,18 @@ var app = (function () {
       });
       setClient(client);
 
-    	return { submit };
+    	return { page: page$1, params };
     }
 
     class App extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, []);
+    		init(this, options, instance$2, create_fragment$3, safe_not_equal, []);
     	}
     }
 
     const app = new App({
     	target: document.body,
-    	props: {
-    		name: 'world'
-    	}
     });
 
     return app;
