@@ -51,10 +51,17 @@
         resolve();
       }, 1000);
     });
-  import ApolloClient from "apollo-boost";
+  import ApolloClient from "apollo-client";
+  import { InMemoryCache } from 'apollo-cache-inmemory';
   import { setClient } from "svelte-apollo";
+  import { createHttpLink } from 'apollo-link-http'
+  const link = createHttpLink({
+    uri: 'http://localhost:4000/graphql',
+    credentials: 'same-origin'
+  });
   const client = new ApolloClient({
-    uri: "http://localhost:4000/graphql",
+    cache: new InMemoryCache(),
+    link,
     onError: ({ networkError, graphQLErrors }) => {
       console.log("graphQLErrors", graphQLErrors);
       console.log("networkError", networkError);

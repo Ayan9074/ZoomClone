@@ -32,7 +32,7 @@
     if (Object.keys(errors).length === 0) {
       isLoading = true;
       try {
-            await register({ variables: { email, password } })  ;
+            await register({ variables: { email, password } });
           } catch (error) {
             errors.server = error;
             isLoading = false;

@@ -10901,22 +10901,22 @@ var app = (function () {
     			if (if_block1) if_block1.c();
     			if_block1_anchor = empty();
     			attr(h1, "class", "svelte-nko1zo");
-    			add_location(h1, file, 129, 4, 2680);
+    			add_location(h1, file, 129, 4, 2678);
     			attr(label0, "class", "svelte-nko1zo");
-    			add_location(label0, file, 131, 4, 2699);
+    			add_location(label0, file, 131, 4, 2697);
     			attr(input0, "name", "email");
     			attr(input0, "placeholder", "name@example.com");
     			attr(input0, "class", "svelte-nko1zo");
-    			add_location(input0, file, 132, 4, 2725);
+    			add_location(input0, file, 132, 4, 2723);
     			attr(label1, "class", "svelte-nko1zo");
-    			add_location(label1, file, 134, 4, 2805);
+    			add_location(label1, file, 134, 4, 2803);
     			attr(input1, "name", "password");
     			attr(input1, "type", "password");
     			attr(input1, "class", "svelte-nko1zo");
-    			add_location(input1, file, 135, 4, 2834);
+    			add_location(input1, file, 135, 4, 2832);
     			attr(button, "type", "submit");
     			attr(button, "class", "svelte-nko1zo");
-    			add_location(button, file, 137, 4, 2905);
+    			add_location(button, file, 137, 4, 2903);
 
     			dispose = [
     				listen(input0, "input", ctx.input0_input_handler),
@@ -11019,9 +11019,9 @@ var app = (function () {
     			t0 = text("🔓\r\n      ");
     			br = element("br");
     			t1 = text("\r\n      You've been successfully logged in.");
-    			add_location(br, file, 125, 6, 2602);
+    			add_location(br, file, 125, 6, 2600);
     			attr(div, "class", "success svelte-nko1zo");
-    			add_location(div, file, 123, 4, 2563);
+    			add_location(div, file, 123, 4, 2561);
     		},
 
     		m: function mount(target, anchor) {
@@ -11103,7 +11103,7 @@ var app = (function () {
     				each_blocks[i].c();
     			}
     			attr(ul, "class", "errors svelte-nko1zo");
-    			add_location(ul, file, 142, 6, 3051);
+    			add_location(ul, file, 142, 6, 3049);
     		},
 
     		m: function mount(target, anchor) {
@@ -11157,7 +11157,7 @@ var app = (function () {
     			t0 = text(t0_value);
     			t1 = text(": ");
     			t2 = text(t2_value);
-    			add_location(li, file, 144, 10, 3128);
+    			add_location(li, file, 144, 10, 3126);
     		},
 
     		m: function mount(target, anchor) {
@@ -11201,7 +11201,7 @@ var app = (function () {
     			form = element("form");
     			if_block.c();
     			attr(form, "class", "svelte-nko1zo");
-    			add_location(form, file, 121, 0, 2492);
+    			add_location(form, file, 121, 0, 2490);
     			dispose = listen(form, "submit", prevent_default(ctx.handleSubmit));
     		},
 
@@ -11274,7 +11274,7 @@ var app = (function () {
         if (Object.keys(errors).length === 0) {
           $$invalidate('isLoading', isLoading = true);
           try {
-                await register({ variables: { email, password } })  ;
+                await register({ variables: { email, password } });
               } catch (error) {
                 errors.server = error; $$invalidate('errors', errors);
                 $$invalidate('isLoading', isLoading = false);
@@ -17065,195 +17065,6 @@ var app = (function () {
         return HttpLink;
     }(ApolloLink$1));
 
-    function onError(errorHandler) {
-        return new ApolloLink$1(function (operation, forward) {
-            return new Observable(function (observer) {
-                var sub;
-                var retriedSub;
-                var retriedResult;
-                try {
-                    sub = forward(operation).subscribe({
-                        next: function (result) {
-                            if (result.errors) {
-                                retriedResult = errorHandler({
-                                    graphQLErrors: result.errors,
-                                    response: result,
-                                    operation: operation,
-                                    forward: forward,
-                                });
-                                if (retriedResult) {
-                                    retriedSub = retriedResult.subscribe({
-                                        next: observer.next.bind(observer),
-                                        error: observer.error.bind(observer),
-                                        complete: observer.complete.bind(observer),
-                                    });
-                                    return;
-                                }
-                            }
-                            observer.next(result);
-                        },
-                        error: function (networkError) {
-                            retriedResult = errorHandler({
-                                operation: operation,
-                                networkError: networkError,
-                                graphQLErrors: networkError &&
-                                    networkError.result &&
-                                    networkError.result.errors,
-                                forward: forward,
-                            });
-                            if (retriedResult) {
-                                retriedSub = retriedResult.subscribe({
-                                    next: observer.next.bind(observer),
-                                    error: observer.error.bind(observer),
-                                    complete: observer.complete.bind(observer),
-                                });
-                                return;
-                            }
-                            observer.error(networkError);
-                        },
-                        complete: function () {
-                            if (!retriedResult) {
-                                observer.complete.bind(observer)();
-                            }
-                        },
-                    });
-                }
-                catch (e) {
-                    errorHandler({ networkError: e, operation: operation, forward: forward });
-                    observer.error(e);
-                }
-                return function () {
-                    if (sub)
-                        sub.unsubscribe();
-                    if (retriedSub)
-                        sub.unsubscribe();
-                };
-            });
-        });
-    }
-    var ErrorLink = (function (_super) {
-        __extends(ErrorLink, _super);
-        function ErrorLink(errorHandler) {
-            var _this = _super.call(this) || this;
-            _this.link = onError(errorHandler);
-            return _this;
-        }
-        ErrorLink.prototype.request = function (operation, forward) {
-            return this.link.request(operation, forward);
-        };
-        return ErrorLink;
-    }(ApolloLink$1));
-
-    var PRESET_CONFIG_KEYS = [
-        'request',
-        'uri',
-        'credentials',
-        'headers',
-        'fetch',
-        'fetchOptions',
-        'clientState',
-        'onError',
-        'cacheRedirects',
-        'cache',
-        'name',
-        'version',
-        'resolvers',
-        'typeDefs',
-        'fragmentMatcher',
-    ];
-    var DefaultClient = (function (_super) {
-        __extends(DefaultClient, _super);
-        function DefaultClient(config) {
-            if (config === void 0) { config = {}; }
-            var _this = this;
-            if (config) {
-                var diff = Object.keys(config).filter(function (key) { return PRESET_CONFIG_KEYS.indexOf(key) === -1; });
-                if (diff.length > 0) {
-                    process.env.NODE_ENV === "production" || invariant$2.warn('ApolloBoost was initialized with unsupported options: ' +
-                        ("" + diff.join(' ')));
-                }
-            }
-            var request = config.request, uri = config.uri, credentials = config.credentials, headers = config.headers, fetch = config.fetch, fetchOptions = config.fetchOptions, clientState = config.clientState, cacheRedirects = config.cacheRedirects, errorCallback = config.onError, name = config.name, version = config.version, resolvers = config.resolvers, typeDefs = config.typeDefs, fragmentMatcher = config.fragmentMatcher;
-            var cache = config.cache;
-            process.env.NODE_ENV === "production" ? invariant$2(!cache || !cacheRedirects, 1) : invariant$2(!cache || !cacheRedirects, 'Incompatible cache configuration. When not providing `cache`, ' +
-                'configure the provided instance with `cacheRedirects` instead.');
-            if (!cache) {
-                cache = cacheRedirects
-                    ? new InMemoryCache$1({ cacheRedirects: cacheRedirects })
-                    : new InMemoryCache$1();
-            }
-            var errorLink = errorCallback
-                ? onError(errorCallback)
-                : onError(function (_a) {
-                    var graphQLErrors = _a.graphQLErrors, networkError = _a.networkError;
-                    if (graphQLErrors) {
-                        graphQLErrors.forEach(function (_a) {
-                            var message = _a.message, locations = _a.locations, path = _a.path;
-                            return process.env.NODE_ENV === "production" || invariant$2.warn("[GraphQL error]: Message: " + message + ", Location: " +
-                                (locations + ", Path: " + path));
-                        });
-                    }
-                    if (networkError) {
-                        process.env.NODE_ENV === "production" || invariant$2.warn("[Network error]: " + networkError);
-                    }
-                });
-            var requestHandler = request
-                ? new ApolloLink$1(function (operation, forward) {
-                    return new Observable(function (observer) {
-                        var handle;
-                        Promise.resolve(operation)
-                            .then(function (oper) { return request(oper); })
-                            .then(function () {
-                            handle = forward(operation).subscribe({
-                                next: observer.next.bind(observer),
-                                error: observer.error.bind(observer),
-                                complete: observer.complete.bind(observer),
-                            });
-                        })
-                            .catch(observer.error.bind(observer));
-                        return function () {
-                            if (handle) {
-                                handle.unsubscribe();
-                            }
-                        };
-                    });
-                })
-                : false;
-            var httpLink = new HttpLink$1({
-                uri: uri || '/graphql',
-                fetch: fetch,
-                fetchOptions: fetchOptions || {},
-                credentials: credentials || 'same-origin',
-                headers: headers || {},
-            });
-            var link = ApolloLink$1.from([errorLink, requestHandler, httpLink].filter(function (x) { return !!x; }));
-            var activeResolvers = resolvers;
-            var activeTypeDefs = typeDefs;
-            var activeFragmentMatcher = fragmentMatcher;
-            if (clientState) {
-                if (clientState.defaults) {
-                    cache.writeData({
-                        data: clientState.defaults,
-                    });
-                }
-                activeResolvers = clientState.resolvers;
-                activeTypeDefs = clientState.typeDefs;
-                activeFragmentMatcher = clientState.fragmentMatcher;
-            }
-            _this = _super.call(this, {
-                cache: cache,
-                link: link,
-                name: name,
-                version: version,
-                resolvers: activeResolvers,
-                typeDefs: activeTypeDefs,
-                fragmentMatcher: activeFragmentMatcher,
-            }) || this;
-            return _this;
-        }
-        return DefaultClient;
-    }(ApolloClient));
-
     /* src\App.svelte generated by Svelte v3.9.1 */
 
     const file$3 = "src\\App.svelte";
@@ -17279,9 +17090,9 @@ var app = (function () {
     			section = element("section");
     			main = element("main");
     			if (switch_instance) switch_instance.$$.fragment.c();
-    			add_location(main, file$3, 77, 2, 1994);
+    			add_location(main, file$3, 84, 2, 2222);
     			attr(section, "class", "svelte-11mbmbh");
-    			add_location(section, file$3, 76, 0, 1981);
+    			add_location(section, file$3, 83, 0, 2209);
     		},
 
     		l: function claim(nodes) {
@@ -17385,8 +17196,13 @@ var app = (function () {
       onMount(() => {
         setContext(key, initialValue);
       });
-      const client = new DefaultClient({
-        uri: "http://localhost:4000/graphql",
+      const link = createHttpLink$1({
+        uri: 'http://localhost:4000/graphql',
+        credentials: 'same-origin'
+      });
+      const client = new ApolloClient({
+        cache: new InMemoryCache$1(),
+        link,
         onError: ({ networkError, graphQLErrors }) => {
           console.log("graphQLErrors", graphQLErrors);
           console.log("networkError", networkError);
