@@ -10866,7 +10866,7 @@ var app = (function () {
     	return child_ctx;
     }
 
-    // (130:2) {:else}
+    // (129:2) {:else}
     function create_else_block(ctx) {
     	var h1, t1, label0, t3, input0, t4, label1, t6, input1, t7, button, t8, show_if = ctx.Object.keys(ctx.errors).length > 0, if_block1_anchor, dispose;
 
@@ -10901,22 +10901,22 @@ var app = (function () {
     			if (if_block1) if_block1.c();
     			if_block1_anchor = empty();
     			attr(h1, "class", "svelte-nko1zo");
-    			add_location(h1, file, 130, 4, 2709);
+    			add_location(h1, file, 129, 4, 2680);
     			attr(label0, "class", "svelte-nko1zo");
-    			add_location(label0, file, 132, 4, 2728);
+    			add_location(label0, file, 131, 4, 2699);
     			attr(input0, "name", "email");
     			attr(input0, "placeholder", "name@example.com");
     			attr(input0, "class", "svelte-nko1zo");
-    			add_location(input0, file, 133, 4, 2754);
+    			add_location(input0, file, 132, 4, 2725);
     			attr(label1, "class", "svelte-nko1zo");
-    			add_location(label1, file, 135, 4, 2834);
+    			add_location(label1, file, 134, 4, 2805);
     			attr(input1, "name", "password");
     			attr(input1, "type", "password");
     			attr(input1, "class", "svelte-nko1zo");
-    			add_location(input1, file, 136, 4, 2863);
+    			add_location(input1, file, 135, 4, 2834);
     			attr(button, "type", "submit");
     			attr(button, "class", "svelte-nko1zo");
-    			add_location(button, file, 138, 4, 2934);
+    			add_location(button, file, 137, 4, 2905);
 
     			dispose = [
     				listen(input0, "input", ctx.input0_input_handler),
@@ -11009,7 +11009,7 @@ var app = (function () {
     	};
     }
 
-    // (124:2) {#if isSuccess}
+    // (123:2) {#if isSuccess}
     function create_if_block(ctx) {
     	var div, t0, br, t1;
 
@@ -11019,9 +11019,9 @@ var app = (function () {
     			t0 = text("🔓\r\n      ");
     			br = element("br");
     			t1 = text("\r\n      You've been successfully logged in.");
-    			add_location(br, file, 126, 6, 2631);
+    			add_location(br, file, 125, 6, 2602);
     			attr(div, "class", "success svelte-nko1zo");
-    			add_location(div, file, 124, 4, 2592);
+    			add_location(div, file, 123, 4, 2563);
     		},
 
     		m: function mount(target, anchor) {
@@ -11041,7 +11041,7 @@ var app = (function () {
     	};
     }
 
-    // (140:34) {:else}
+    // (139:34) {:else}
     function create_else_block_1(ctx) {
     	var t;
 
@@ -11062,7 +11062,7 @@ var app = (function () {
     	};
     }
 
-    // (140:6) {#if isLoading}
+    // (139:6) {#if isLoading}
     function create_if_block_2(ctx) {
     	var t;
 
@@ -11083,7 +11083,7 @@ var app = (function () {
     	};
     }
 
-    // (143:4) {#if Object.keys(errors).length > 0}
+    // (142:4) {#if Object.keys(errors).length > 0}
     function create_if_block_1(ctx) {
     	var ul;
 
@@ -11103,7 +11103,7 @@ var app = (function () {
     				each_blocks[i].c();
     			}
     			attr(ul, "class", "errors svelte-nko1zo");
-    			add_location(ul, file, 143, 6, 3080);
+    			add_location(ul, file, 142, 6, 3051);
     		},
 
     		m: function mount(target, anchor) {
@@ -11147,7 +11147,7 @@ var app = (function () {
     	};
     }
 
-    // (145:8) {#each Object.keys(errors) as field}
+    // (144:8) {#each Object.keys(errors) as field}
     function create_each_block(ctx) {
     	var li, t0_value = ctx.field + "", t0, t1, t2_value = ctx.errors[ctx.field] + "", t2;
 
@@ -11157,7 +11157,7 @@ var app = (function () {
     			t0 = text(t0_value);
     			t1 = text(": ");
     			t2 = text(t2_value);
-    			add_location(li, file, 145, 10, 3157);
+    			add_location(li, file, 144, 10, 3128);
     		},
 
     		m: function mount(target, anchor) {
@@ -11201,7 +11201,7 @@ var app = (function () {
     			form = element("form");
     			if_block.c();
     			attr(form, "class", "svelte-nko1zo");
-    			add_location(form, file, 122, 0, 2521);
+    			add_location(form, file, 121, 0, 2492);
     			dispose = listen(form, "submit", prevent_default(ctx.handleSubmit));
     		},
 
@@ -11274,7 +11274,7 @@ var app = (function () {
         if (Object.keys(errors).length === 0) {
           $$invalidate('isLoading', isLoading = true);
           try {
-                await register({ variables: { email, password } });
+                await register({ variables: { email, password } })  ;
               } catch (error) {
                 errors.server = error; $$invalidate('errors', errors);
                 $$invalidate('isLoading', isLoading = false);
@@ -11284,7 +11284,6 @@ var app = (function () {
                 } else {
                   $$invalidate('isSuccess', isSuccess = true);
                   $$invalidate('isLoading', isLoading = false);
-                  console.log(id);
                 }
               }
               
